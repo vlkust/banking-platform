@@ -1,4 +1,5 @@
 from uuid import uuid4
+from utils import logger
 
 
 class AccountFrozenError(Exception):
@@ -23,6 +24,8 @@ class AbstractAccount:
         self.owner = owner
         self.balance = balance
         self.status = status
+
+        logger.info(f"Account initialized: id={self.account_id}, owner={self.owner}, status={self.status}")
 
     def deposit(self, amount: float) -> None:
         pass
@@ -52,13 +55,17 @@ class BankAccount(AbstractAccount):
         if not self.account_id:
             self.account_id = self.generate_account_id()
 
+        logger.info(f"BankAccount created: id={self.account_id}, owner={self.owner}, currency={self.currency}")
+
     def generate_account_id(self) -> str:
         """Generate a short unique account identifier.
 
         Returns:
             str: Short uppercase identifier based on UUID.
         """
-        return uuid4().hex[:8].upper()
+        account_id = uuid4().hex[:8].upper()
+        logger.error(f"Account_id generated: {self.account_id}")
+        return account_id
     
     def balance_validatinon(self) -> None:
         """Validate the balance.
@@ -70,10 +77,14 @@ class BankAccount(AbstractAccount):
             InvalidOperationError: If balance is not numeric or is negative.
         """
         if not isinstance(self.balance, (int, float)):
+            logger.error(f"Invalid balance type: {type(self.balance).__name__}")
             raise InvalidOperationError("Balance must be a number.")
         
         if self.balance < 0:
+            logger.error(f"Negative balance attempted: {self.balance}")
             raise InvalidOperationError("Balance must be greater than zero.")
+        
+        logger.info(f"Balance validated: id={self.account_id}, balance={self.balance}")
         
     def status_validatinon(self) -> None:
         """Validate the status.
@@ -85,7 +96,8 @@ class BankAccount(AbstractAccount):
             InvalidOperationError: If status is not in the allowed status list.
         """
         if self.status not in self.ALLOWED_STATUS_LIST:
-            raise InvalidOperationError(f"Invalid status: {self.status}.")
+            logger.error(f"Invalid status: {self.status}.")
+            raise InvalidOperationError(f"Invalid status: {self.status}")
         
     def currency_validatinon(self) -> None:
         """Validate the account currency.
@@ -97,7 +109,8 @@ class BankAccount(AbstractAccount):
             InvalidOperationError: If currency is not in the allowed currency list.
         """
         if self.currency not in self.ALLOWED_CURRENCY_LIST:
-            raise InvalidOperationError(f"Invalid currency: {self.status}.")
+            logger.error(f"Invalid currency: {self.currency}.")
+            raise InvalidOperationError(f"Invalid currency: {self.currency}")
         
     def check_account_status(self) -> None:
         """Check whether operations are allowed for the current status.
@@ -107,8 +120,10 @@ class BankAccount(AbstractAccount):
             AccountClosedError: If the account is closed.
         """
         if self.status == "frozen":
+            logger.warning(f"Operation blocked: frozen account id={self.account_id}")
             raise AccountFrozenError("Account is frozen.")
         if self.status == "closed":
+            logger.warning(f"Operation blocked: closed account id={self.account_id}")
             raise AccountClosedError("Account is closed.")
         
     def is_balance_sufficient(self, amount) -> None:
@@ -122,6 +137,7 @@ class BankAccount(AbstractAccount):
             InsufficientFundsError: If the balance is insufficient for withdrawal.
         """
         if amount > self.balance:
+            logger.error(f"Withdrawal failed: id={self.account_id}, amount={amount}, balance={self.balance}")
             raise InsufficientFundsError("Insufficient funds.")
         
     def amount_validatinon(self, amount) -> None:
@@ -137,9 +153,11 @@ class BankAccount(AbstractAccount):
             InvalidOperationError: If amount is not numeric or is not positive.
         """
         if not isinstance(amount, (int, float)):
+            logger.error(f"Invalid amount type: {type(amount).__name__}")
             raise InvalidOperationError("Amount must be a number.")
         
         if amount <= 0:
+            logger.error(f"Non-positive amount attempted: {amount}")
             raise InvalidOperationError("Amount must be greater than zero.")
         
     def deposit(self, amount: float) -> None:
@@ -156,6 +174,7 @@ class BankAccount(AbstractAccount):
         self.check_account_status()
         self.amount_validatinon(amount)
         self.balance += amount
+        logger.info(f"Deposit successful: id={self.account_id}, amount={amount}, new_balance={self.balance}")
     
     def withdraw(self, amount: float) -> None:
         """Withdraw funds from the account.
@@ -173,6 +192,7 @@ class BankAccount(AbstractAccount):
         self.amount_validatinon(amount)
         self.is_balance_sufficient(amount)
         self.balance -= amount
+        logger.info(f"Withdrawal successful: id={self.account_id}, amount={amount}, new_balance={self.balance}")
         
     def get_account_info(self) -> dict:
         """Return structured account information.
@@ -203,3 +223,18 @@ class BankAccount(AbstractAccount):
             f"Status: {self.status} | "
             f"Balance: {self.balance:.2f} {self.currency}"
         )
+    
+
+class SavingsAccount(AbstractAccount):
+    def __init__(self):
+        a=a
+
+
+class PremiumAccount(AbstractAccount):
+    def __init__(self):
+        a=a
+
+
+class InvestmentAccount(AbstractAccount):
+    def __init__(self):
+        a=a
