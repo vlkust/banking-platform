@@ -1,4 +1,9 @@
 import logging
+from exceptions import InvalidOperationError
+
+ALLOWED_STATUS_LIST = ["active", "frozen", "closed"]
+ALLOWED_CURRENCY_LIST = ["RUB", "USD", "EUR", "KZT", "CNY"]
+ALLOWED_PORTFOLIO_ASSETS_LIST = ["stocks", "bonds", "etf"]
 
 
 def setup_logger() -> logging.Logger:
@@ -25,3 +30,34 @@ def setup_logger() -> logging.Logger:
     return logger
 
 logger = setup_logger()
+
+
+def numeric_value_validation(value: float, value_name: str) -> None:
+    """Validate a numeric value.
+
+    Args:
+        value: any numeric value.
+
+    Raises:
+        InvalidOperationError: If value is not numeric or is not positive.
+    """
+    if not isinstance(value, (int, float)):
+        logger.error(f"Invalid {value_name} type: {type(value).__name__}")
+        raise InvalidOperationError(f"{value_name} must be a number.")
+    
+    if value < 0:
+        logger.error(f"Non-positive {value_name} attempted: {value}")
+        raise InvalidOperationError(f"{value_name} must be equal to or greater than zero.")
+
+def string_value_validation(value: str, allowed_list: dict, value_name: str) -> None:
+    """Validate a string status.
+
+    Args:
+        value: any string value.
+
+    Raises:
+        InvalidOperationError: If value is not in the allowed list.
+    """
+    if value not in allowed_list:
+        logger.error(f"Invalid {value_name}: {value}.")
+        raise InvalidOperationError(f"Invalid {value_name}: {value}, allowed_list: {allowed_list}")
