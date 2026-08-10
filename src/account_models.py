@@ -3,6 +3,7 @@ from uuid import uuid4
 from exceptions import InvalidOperationError, AccountFrozenError, AccountClosedError, InsufficientFundsError
 from utils import (
                 logger, 
+                generate_id,
                 numeric_value_validation, 
                 string_value_validation, 
                 ALLOWED_STATUS_LIST, 
@@ -105,19 +106,9 @@ class BankAccount(AbstractAccount):
         string_value_validation(self.status, ALLOWED_STATUS_LIST, "status")
         string_value_validation(self.currency, ALLOWED_CURRENCY_LIST, "currency")
 
-        if not self.account_id:
-            self.account_id = self._generate_account_id()
-            logger.info(f"Account_id generated: {self.account_id}")
+        self.account_id = generate_id(account_id, "Account ID")
 
         logger.info(f"BankAccount created: id={self.account_id}, owner={self.owner}, currency={self.currency}")
-
-    def _generate_account_id(self) -> str:
-        """Generate a short unique account identifier.
-
-        Returns:
-            str: Short uppercase identifier based on UUID.
-        """
-        return uuid4().hex[:8].upper()
         
     def _check_account_status(self) -> None:
         """Check whether operations are allowed for the current status.
