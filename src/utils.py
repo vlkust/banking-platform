@@ -16,6 +16,11 @@ ALLOWED_RISK_LEVEL_LIST = ["low", "medium", "high"]
 DEFAULT_AUDIT_FILE = "audit.log"
 DEFAULT_LARGE_AMOUNT_LIMIT = 10000
 DEFAULT_FREQUENT_OPERATION_LIMIT = 3
+DEFAULT_EXCHANGE_RATES = {
+        "RUB": 1.0,
+        "USD": 90.0,
+        "EUR": 100.0,
+    }
 
 
 def setup_logger() -> logging.Logger:

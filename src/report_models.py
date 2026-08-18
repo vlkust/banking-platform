@@ -19,6 +19,7 @@ class ReportBuilder:
         transactions: list[Transaction],
         audit_log: AuditLog,
         processor,
+        risk_analyzer=None
     ):
         """Initialize report builder.
 
@@ -27,11 +28,13 @@ class ReportBuilder:
             transactions: All project transactions.
             audit_log: Audit log object.
             processor: Transaction processor.
+            risk_analyzer: Optional RiskAnalyzer object.
         """
         self.bank = bank
         self.transactions = transactions
         self.audit_log = audit_log
         self.processor = processor
+        self.risk_analyzer = risk_analyzer
 
         logger.info("ReportBuilder created")
 
@@ -149,10 +152,13 @@ class ReportBuilder:
         client_risk_profiles = {}
 
         for client_id in self.bank.bank_clients:
-            profile = self.audit_log.filter_records(
-                client_id=client_id,
-                event="risk_analysis",
-            )
+            if self.risk_analyzer is not None:
+                profile = self.risk_analyzer.get_client_risk_profile(client_id)
+            else:
+                profile = self.audit_log.filter_records(
+                    client_id=client_id,
+                    event="risk_analysis",
+                )
 
             client_risk_profiles[client_id] = profile
 

@@ -217,6 +217,7 @@ def create_normal_transactions(accounts: list) -> list[Transaction]:
                 currency="RUB",
                 from_account=accounts[0],
                 client_id="C001",
+                max_retries=1,
             ),
             Transaction(
                 transaction_type="withdrawal",
@@ -224,6 +225,7 @@ def create_normal_transactions(accounts: list) -> list[Transaction]:
                 currency="RUB",
                 from_account=accounts[2],
                 client_id="C002",
+                max_retries=1,
             ),
         ]
     )
@@ -234,7 +236,7 @@ def create_normal_transactions(accounts: list) -> list[Transaction]:
 def create_suspicious_transactions(
     accounts: list,
 ) -> list[Transaction]:
-    """Create suspicious transactions.
+    """Create suspicious and scheduled transactions.
 
     Args:
         accounts: Bank account objects.
@@ -339,67 +341,17 @@ def create_suspicious_transactions(
 
     transactions.append(night_transaction)
 
+    scheduled_transaction = Transaction(
+        transaction_type="deposit",
+        amount=500,
+        currency="RUB",
+        to_account=accounts[0],
+        client_id="C001",
+        scheduled_at="2026-12-31T23:59:59",
+    )
+    transactions.append(scheduled_transaction)
+
     return transactions
-
-
-def analyze_and_queue_transactions(
-    transactions: list[Transaction],
-    processor: TransactionProcessor,
-    risk_analyzer: RiskAnalyzer,
-) -> tuple[list[Transaction], list[Transaction]]:
-    """Analyze transactions and add allowed ones to the queue.
-
-    Args:
-        transactions: Transactions to analyze.
-        processor: Transaction processor.
-        risk_analyzer: Risk analyzer.
-
-    Returns:
-        tuple: Allowed and blocked transactions.
-    """
-    allowed_transactions = []
-    blocked_transactions = []
-
-    for index, transaction in enumerate(transactions):
-        risk_result = risk_analyzer.analyze_transaction(
-            transaction
-        )
-
-        logger.info(
-            f"Risk result: "
-            f"transaction_id={transaction.transaction_id}, "
-            f"risk_level={risk_result['risk_level']}, "
-            f"reasons={risk_result['reasons']}"
-        )
-
-        if risk_analyzer.block_dangerous_transaction(
-            transaction,
-            risk_result,
-        ):
-            blocked_transactions.append(transaction)
-
-            logger.warning(
-                f"Transaction rejected before queue: "
-                f"id={transaction.transaction_id}"
-            )
-            continue
-
-        priority = index < 3
-
-        processor.queue.add_transaction(
-            transaction=transaction,
-            priority=priority,
-        )
-
-        allowed_transactions.append(transaction)
-
-        logger.info(
-            f"Transaction added to processing queue: "
-            f"id={transaction.transaction_id}, "
-            f"priority={priority}"
-        )
-
-    return allowed_transactions, blocked_transactions
 
 
 def show_client_accounts(
@@ -486,8 +438,6 @@ def show_final_reports(
     audit_log: AuditLog,
     report_builder: ReportBuilder,
     transactions: list[Transaction],
-    allowed_transactions: list[Transaction],
-    blocked_transactions: list[Transaction],
 ) -> None:
     """Build, export and log all final reports.
 
@@ -497,8 +447,6 @@ def show_final_reports(
         audit_log: Audit log object.
         report_builder: ReportBuilder object.
         transactions: All project transactions.
-        allowed_transactions: Transactions added to queue.
-        blocked_transactions: Transactions blocked by risk analyzer.
     """
     logger.info("=== Final reports started ===")
 
@@ -537,13 +485,14 @@ def show_final_reports(
             f"{position}. {client}"
         )
 
+    blocked_count = len(risk_report.get("blocked_operations", []))
+
     logger.info(
         f"Transaction statistics: "
         f"created={len(transactions)}, "
-        f"queued={len(allowed_transactions)}, "
         f"processed={len(processor.processed_transactions)}, "
         f"failed={len(processor.failed_transactions)}, "
-        f"blocked={len(blocked_transactions)}"
+        f"blocked={blocked_count}"
     )
 
     logger.info(
@@ -620,31 +569,21 @@ def run_demo() -> None:
     processor = TransactionProcessor(
         bank=bank,
         external_transfer_commission=0.01,
+        risk_analyzer=risk_analyzer,
     )
 
-    normal_transactions = create_normal_transactions(
-        accounts
-    )
+    normal_transactions = create_normal_transactions(accounts)
+    suspicious_transactions = create_suspicious_transactions(accounts)
 
-    suspicious_transactions = create_suspicious_transactions(
-        accounts
-    )
-
-    transactions = (
-        normal_transactions + suspicious_transactions
-    )
+    transactions = normal_transactions + suspicious_transactions
 
     logger.info(
         f"All transactions created: count={len(transactions)}"
     )
 
-    allowed_transactions, blocked_transactions = (
-        analyze_and_queue_transactions(
-            transactions=transactions,
-            processor=processor,
-            risk_analyzer=risk_analyzer,
-        )
-    )
+    for index, transaction in enumerate(transactions):
+        priority = index < 3
+        processor.queue.add_transaction(transaction, priority=priority)
 
     logger.info(
         f"Queue before processing: "
@@ -676,6 +615,7 @@ def run_demo() -> None:
         transactions=transactions,
         audit_log=audit_log,
         processor=processor,
+        risk_analyzer=risk_analyzer,
     )
 
     show_final_reports(
@@ -684,8 +624,6 @@ def run_demo() -> None:
         audit_log=audit_log,
         report_builder=report_builder,
         transactions=transactions,
-        allowed_transactions=allowed_transactions,
-        blocked_transactions=blocked_transactions,
     )
 
     logger.info("=== Complete demo finished ===")
